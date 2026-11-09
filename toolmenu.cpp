@@ -781,27 +781,12 @@ void ShowPopupMenu(int Win, int Pos) {
 	EnableMenuItem(submenu, MENU_OPEN, canOpen ? 0 : MF_GRAYED);
 	constexpr UINT MenuID[VIEWERS] = { MENU_OPEN1, MENU_OPEN2, MENU_OPEN3 };
 	for (int i = VIEWERS - 1; i >= 0; i--) {
-		if (empty(ViewerName[i]))
-			continue;
-		// Embedded NULs in external viewer settings must never become blank menu items.
-		if (ViewerName[i].find(L'\0') != std::wstring::npos) {
-			Debug(L"[MENU-VALIDATION] viewer={} invalid-setting-NUL; skipped"sv, i + 1);
-			continue;
+		if (!empty(ViewerName[i])) {
+			static auto const format = GetString(IDS_OPEN_WITH);
+			auto text = FfftpFormat(format, fs::path{ ViewerName[i] }.filename().native(), i + 1);
+			MENUITEMINFOW mii{ .cbSize = sizeof(MENUITEMINFOW), .fMask = MIIM_FTYPE | MIIM_STATE | MIIM_ID | MIIM_STRING, .fType = MFT_STRING, .fState = UINT(canOpen ? 0 : MFS_GRAYED), .wID = MenuID[i], .dwTypeData = data(text) };
+			InsertMenuItemW(submenu, 1, true, &mii);
 		}
-		static auto const format = GetString(IDS_OPEN_WITH);
-		auto const filename = fs::path{ ViewerName[i] }.filename().native();
-		if (empty(filename) || filename.find(L'\0') != std::wstring::npos) {
-			Debug(L"[MENU-VALIDATION] viewer={} invalid-filename; skipped"sv, i + 1);
-			continue;
-		}
-		auto text = FfftpFormat(format, filename, i + 1);
-		if (empty(text) || text.find(L'\0') != std::wstring::npos) {
-			Debug(L"[MENU-VALIDATION] viewer={} invalid-label; skipped"sv, i + 1);
-			continue;
-		}
-		MENUITEMINFOW mii{ .cbSize = sizeof(MENUITEMINFOW), .fMask = MIIM_FTYPE | MIIM_STATE | MIIM_ID | MIIM_STRING, .fType = MFT_STRING, .fState = UINT(canOpen ? 0 : MFS_GRAYED), .wID = MenuID[i], .dwTypeData = data(text) };
-		if (InsertMenuItemW(submenu, 1, true, &mii) == 0)
-			Debug(L"[MENU-VALIDATION] viewer={} insertion-failed; skipped"sv, i + 1);
 	}
 	if (Win == WIN_LOCAL) {
 		EnableMenuItem(submenu, MENU_UPLOAD, selecting && connecting ? 0 : MF_GRAYED);
