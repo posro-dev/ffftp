@@ -250,6 +250,7 @@ BEGIN
     POPUP "local"
     BEGIN
         MENUITEM "&Open",                       MENU_OPEN
+        MENUITEM SEPARATOR
         MENUITEM "&Upload",                     MENU_UPLOAD
         MENUITEM "U&pload As...",               MENU_UPLOAD_AS
         MENUITEM "Up&load All",                 MENU_UPLOAD_ALL
@@ -264,6 +265,7 @@ BEGIN
     POPUP "remote"
     BEGIN
         MENUITEM "&Open",                       MENU_OPEN
+        MENUITEM SEPARATOR
         MENUITEM "&Download",                   MENU_DOWNLOAD
         MENUITEM "D&ownload As...",             MENU_DOWNLOAD_AS
         MENUITEM "Do&wnliad as File",           MENU_DOWNLOAD_AS_FILE

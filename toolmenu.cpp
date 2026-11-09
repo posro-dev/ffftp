@@ -830,6 +830,24 @@ void ShowPopupMenu(int Win, int Pos) {
 		point.x = Rect.left + 20;
 		point.y = Rect.top + 20;
 	}
+	// Temporary read-only telemetry for diagnosing invisible right-click items.
+	// No file paths or item captions are written to the connection log.
+	if (Win == WIN_REMOTE) {
+		static bool menuLogged = false;
+		if (!menuLogged) {
+			menuLogged = true;
+			for (int i = 0; i < VIEWERS; ++i)
+				Debug(L"[MENU-DIAG] viewer={} configured={} pathChars={}"sv, i + 1, !empty(ViewerName[i]), size(ViewerName[i]));
+			auto const count = GetMenuItemCount(submenu);
+			Debug(L"[MENU-DIAG] totalItems={}"sv, count);
+			for (int i = 0; i < count; ++i) {
+				wchar_t label[256]{};
+				auto const chars = GetMenuStringW(submenu, i, label, 256, MF_BYPOSITION);
+				auto const state = GetMenuState(submenu, i, MF_BYPOSITION);
+				Debug(L"[MENU-DIAG] item={} id={} state=0x{:08X} labelChars={}"sv, i, GetMenuItemID(submenu, i), (unsigned int)state, chars);
+			}
+		}
+	}
 	TrackPopupMenu(submenu, TPM_LEFTBUTTON | TPM_RIGHTBUTTON, point.x, point.y, 0, GetMainHwnd(), NULL);
 	DestroyMenu(menu);
 }

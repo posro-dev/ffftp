@@ -250,6 +250,7 @@ BEGIN
     POPUP "local"
     BEGIN
         MENUITEM "開く(&O)",                      MENU_OPEN
+        MENUITEM SEPARATOR
         MENUITEM "アップロード(&U)",                  MENU_UPLOAD
         MENUITEM "名前を変えてアップロード(&P)...",         MENU_UPLOAD_AS
         MENUITEM "全てをアップロード",                   MENU_UPLOAD_ALL
@@ -264,6 +265,7 @@ BEGIN
     POPUP "remote"
     BEGIN
         MENUITEM "開く(&O)",                      MENU_OPEN
+        MENUITEM SEPARATOR
         MENUITEM "ダウンロード(&D)",                  MENU_DOWNLOAD
         MENUITEM "名前を変えてダウンロード(&W)...",         MENU_DOWNLOAD_AS
         MENUITEM "ファイルとしてダウンロード(&I)",           MENU_DOWNLOAD_AS_FILE
