@@ -223,7 +223,7 @@ static inline std::invoke_result_t<Test> Wait(SocketContext& sc, int* CancelChec
 
 
 // SSLセッションを開始
-BOOL SocketContext::AttachSSL(BOOL* pbAborted) {
+BOOL SocketContext::AttachSSL(BOOL* pbAborted, bool receiveData) {
 	assert(SecIsValidHandle(&credential));
 
 	SecBuffer outBuffer[]{ { 0, SECBUFFER_EMPTY, nullptr }, { 0, SECBUFFER_EMPTY, nullptr } };
@@ -244,10 +244,15 @@ BOOL SocketContext::AttachSSL(BOOL* pbAborted) {
 
 	sslNeedRenegotiate = true;
 
-	auto result = Wait(*this, pbAborted, [this]() -> std::optional<bool> {
+	auto result = Wait(*this, pbAborted, [this, receiveData]() -> std::optional<bool> {
 		switch (sslReadStatus) {
 		case SEC_E_OK:
 			return true;
+		case SEC_I_CONTEXT_EXPIRED:
+			// Data receiver only: close_notify may arrive together with
+			// the last TLS handshake message and already-decrypted data.
+			// Treat it as EOF only if handshake completion was observed.
+			return receiveData && !sslNeedRenegotiate;
 		case SEC_E_INCOMPLETE_MESSAGE:
 		case SEC_I_CONTINUE_NEEDED:
 			return {};
@@ -258,8 +263,8 @@ BOOL SocketContext::AttachSSL(BOOL* pbAborted) {
 	if (!result || !*result)
 		return FALSE;
 
-	if ((sslReadStatus = QueryContextAttributesW(&sslContext, SECPKG_ATTR_STREAM_SIZES, &sslStreamSizes)) != SEC_E_OK) {
-		Error(L"QueryContextAttributes(SECPKG_ATTR_STREAM_SIZES)"sv, sslReadStatus);
+	if (auto const status = QueryContextAttributesW(&sslContext, SECPKG_ATTR_STREAM_SIZES, &sslStreamSizes); status != SEC_E_OK) {
+		Error(L"QueryContextAttributes(SECPKG_ATTR_STREAM_SIZES)"sv, status);
 		return FALSE;
 	}
 

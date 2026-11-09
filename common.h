@@ -576,7 +576,7 @@ struct SocketContext : public WSAOVERLAPPED {
 	inline ~SocketContext();
 	static std::shared_ptr<SocketContext> Create(int af, std::variant<std::wstring_view, std::reference_wrapper<const SocketContext>> originalTarget);
 	std::shared_ptr<SocketContext> Accept(_Out_writes_bytes_opt_(*addrlen) struct sockaddr* addr, _Inout_opt_ int* addrlen);
-	BOOL AttachSSL(BOOL* pbAborted);
+	BOOL AttachSSL(BOOL* pbAborted, bool receiveData = false);
 	constexpr bool IsSSLAttached() {
 		return SecIsValidHandle(&sslContext);
 	}
@@ -1292,9 +1292,14 @@ static inline auto replace(std::basic_string_view<Char> input, boost::basic_rege
 	replaced.append(last, data(input) + size(input));
 	return replaced;
 }
+template<typename... Args>
+static inline std::wstring FfftpFormat(std::wstring_view fmt, Args&&... args) {
+	return std::vformat(fmt, std::make_wformat_args(args...));
+}
+
 template<int captionId = IDS_APP>
 static inline auto Message(HWND owner, int textId, DWORD style) noexcept {
-	MSGBOXPARAMSW msgBoxParams{ sizeof MSGBOXPARAMSW, owner, GetFtpInst(), MAKEINTRESOURCEW(textId), MAKEINTRESOURCEW(captionId), style, nullptr, 0, nullptr, LANG_NEUTRAL };
+	MSGBOXPARAMSW msgBoxParams{ sizeof(MSGBOXPARAMSW), owner, GetFtpInst(), MAKEINTRESOURCEW(textId), MAKEINTRESOURCEW(captionId), style, nullptr, 0, nullptr, LANG_NEUTRAL };
 	return MessageBoxIndirectW(&msgBoxParams);
 }
 template<int captionId = IDS_APP>
