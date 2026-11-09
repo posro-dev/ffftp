@@ -783,9 +783,18 @@ void ShowPopupMenu(int Win, int Pos) {
 	for (int i = VIEWERS - 1; i >= 0; i--) {
 		if (!empty(ViewerName[i])) {
 			static auto const format = GetString(IDS_OPEN_WITH);
-			auto text = FfftpFormat(format, fs::path{ ViewerName[i] }.filename().native(), i + 1);
+			auto const filename = fs::path{ ViewerName[i] }.filename().native();
+			auto text = FfftpFormat(format, filename, i + 1);
 			MENUITEMINFOW mii{ .cbSize = sizeof(MENUITEMINFOW), .fMask = MIIM_FTYPE | MIIM_STATE | MIIM_ID | MIIM_STRING, .fType = MFT_STRING, .fState = UINT(canOpen ? 0 : MFS_GRAYED), .wID = MenuID[i], .dwTypeData = data(text) };
-			InsertMenuItemW(submenu, 1, true, &mii);
+			auto const inserted = InsertMenuItemW(submenu, 1, true, &mii);
+			// Temporary sanitized telemetry: do not log viewer paths or captions.
+			if (Win == WIN_REMOTE) {
+				wchar_t buffer[256]{};
+				auto const menuChars = GetMenuStringW(submenu, 1, buffer, 256, MF_BYPOSITION);
+				Debug(L"[MENU-DIAG] build viewer={} filenameChars={} renderedChars={} firstCode={} embeddedNul={} insertSuccess={} menuChars={}"sv,
+					i + 1, size(filename), size(text), empty(text) ? 0 : (unsigned int)text.front(),
+					text.find(L'\0') != std::wstring::npos, inserted != 0, menuChars);
+			}
 		}
 	}
 	if (Win == WIN_LOCAL) {
