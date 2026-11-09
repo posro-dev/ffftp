@@ -781,21 +781,27 @@ void ShowPopupMenu(int Win, int Pos) {
 	EnableMenuItem(submenu, MENU_OPEN, canOpen ? 0 : MF_GRAYED);
 	constexpr UINT MenuID[VIEWERS] = { MENU_OPEN1, MENU_OPEN2, MENU_OPEN3 };
 	for (int i = VIEWERS - 1; i >= 0; i--) {
-		if (!empty(ViewerName[i])) {
-			static auto const format = GetString(IDS_OPEN_WITH);
-			auto const filename = fs::path{ ViewerName[i] }.filename().native();
-			auto text = FfftpFormat(format, filename, i + 1);
-			MENUITEMINFOW mii{ .cbSize = sizeof(MENUITEMINFOW), .fMask = MIIM_FTYPE | MIIM_STATE | MIIM_ID | MIIM_STRING, .fType = MFT_STRING, .fState = UINT(canOpen ? 0 : MFS_GRAYED), .wID = MenuID[i], .dwTypeData = data(text) };
-			auto const inserted = InsertMenuItemW(submenu, 1, true, &mii);
-			// Temporary sanitized telemetry: do not log viewer paths or captions.
-			if (Win == WIN_REMOTE) {
-				wchar_t buffer[256]{};
-				auto const menuChars = GetMenuStringW(submenu, 1, buffer, 256, MF_BYPOSITION);
-				Debug(L"[MENU-DIAG] build viewer={} filenameChars={} renderedChars={} firstCode={} embeddedNul={} insertSuccess={} menuChars={}"sv,
-					i + 1, size(filename), size(text), empty(text) ? 0 : (unsigned int)text.front(),
-					text.find(L'\0') != std::wstring::npos, inserted != 0, menuChars);
-			}
+		if (empty(ViewerName[i]))
+			continue;
+		// Embedded NULs in external viewer settings must never become blank menu items.
+		if (ViewerName[i].find(L'\0') != std::wstring::npos) {
+			Debug(L"[MENU-VALIDATION] viewer={} invalid-setting-NUL; skipped"sv, i + 1);
+			continue;
 		}
+		static auto const format = GetString(IDS_OPEN_WITH);
+		auto const filename = fs::path{ ViewerName[i] }.filename().native();
+		if (empty(filename) || filename.find(L'\0') != std::wstring::npos) {
+			Debug(L"[MENU-VALIDATION] viewer={} invalid-filename; skipped"sv, i + 1);
+			continue;
+		}
+		auto text = FfftpFormat(format, filename, i + 1);
+		if (empty(text) || text.find(L'\0') != std::wstring::npos) {
+			Debug(L"[MENU-VALIDATION] viewer={} invalid-label; skipped"sv, i + 1);
+			continue;
+		}
+		MENUITEMINFOW mii{ .cbSize = sizeof(MENUITEMINFOW), .fMask = MIIM_FTYPE | MIIM_STATE | MIIM_ID | MIIM_STRING, .fType = MFT_STRING, .fState = UINT(canOpen ? 0 : MFS_GRAYED), .wID = MenuID[i], .dwTypeData = data(text) };
+		if (InsertMenuItemW(submenu, 1, true, &mii) == 0)
+			Debug(L"[MENU-VALIDATION] viewer={} insertion-failed; skipped"sv, i + 1);
 	}
 	if (Win == WIN_LOCAL) {
 		EnableMenuItem(submenu, MENU_UPLOAD, selecting && connecting ? 0 : MF_GRAYED);
@@ -838,24 +844,6 @@ void ShowPopupMenu(int Win, int Pos) {
 		GetWindowRect(Win == WIN_LOCAL ? GetLocalHwnd() : GetRemoteHwnd(), &Rect);
 		point.x = Rect.left + 20;
 		point.y = Rect.top + 20;
-	}
-	// Temporary read-only telemetry for diagnosing invisible right-click items.
-	// No file paths or item captions are written to the connection log.
-	if (Win == WIN_REMOTE) {
-		static bool menuLogged = false;
-		if (!menuLogged) {
-			menuLogged = true;
-			for (int i = 0; i < VIEWERS; ++i)
-				Debug(L"[MENU-DIAG] viewer={} configured={} pathChars={}"sv, i + 1, !empty(ViewerName[i]), size(ViewerName[i]));
-			auto const count = GetMenuItemCount(submenu);
-			Debug(L"[MENU-DIAG] totalItems={}"sv, count);
-			for (int i = 0; i < count; ++i) {
-				wchar_t label[256]{};
-				auto const chars = GetMenuStringW(submenu, i, label, 256, MF_BYPOSITION);
-				auto const state = GetMenuState(submenu, i, MF_BYPOSITION);
-				Debug(L"[MENU-DIAG] item={} id={} state=0x{:08X} labelChars={}"sv, i, GetMenuItemID(submenu, i), (unsigned int)state, chars);
-			}
-		}
 	}
 	TrackPopupMenu(submenu, TPM_LEFTBUTTON | TPM_RIGHTBUTTON, point.x, point.y, 0, GetMainHwnd(), NULL);
 	DestroyMenu(menu);
