@@ -41,8 +41,9 @@ class Config {
 	std::optional<std::string> ReadStringCore(std::string_view name) const {
 		if (std::string value; ReadStringImpl(name, value)) {
 			Xor(name, data(value), size_as<DWORD>(value), true);
-			if (auto const pos = value.find_last_not_of('\0'); pos != std::string::npos)
-				value.erase(pos + 1);
+			// Scalar setting strings end at the first NUL (including all-NUL values).
+			if (auto const pos = value.find('\0'); pos != std::string::npos)
+				value.erase(pos);
 			return std::move(value);
 		}
 		return {};
@@ -879,7 +880,7 @@ struct IniConfig : Config {
 	}
 	const char* Scan(std::string_view name) const {
 		for (auto const& line : (*map)[KeyName])
-			if (size(name) + 1 < size(line) && line.starts_with(name) && line[size(name)] == '=')
+			if (size(name) + 1 <= size(line) && line.starts_with(name) && line[size(name)] == '=')
 				return data(line) + size(name) + 1;
 		return nullptr;
 	}
